@@ -1,59 +1,53 @@
-import json
-import xml.sax
-import csv
+import pandas as pd
+from itertools import islice
+
+df = pd.read_csv("netflix_titles.csv")
 
 
-def parse_json():
-    with open('daily_json.json', encoding='utf-8') as json_file:
-        data = json.load(json_file)
-        for valute in data['Valute']:
-            val = data['Valute'][valute]
-            print(val['Name'] + ', ' + str(val['Previous']) + ', ' + str(val['Value']))
+# Самые длинные сериалы
+def get_longest_running_shows(df):
+    df_shows = df[(df['type'] == "TV Show")]
+    df_shows = df_shows[['title', 'duration']]
+    df_shows['duration'] = df_shows['duration'].str.split(' ', expand=True)
+    df_shows['duration'] = pd.to_numeric(df_shows['duration'])
+    df_shows = df_shows.sort_values(by='duration', ascending=False)
+    res = pd.Series(df_shows.duration.values, index=df_shows.title).to_dict()
+    res = dict(islice(res.items(), 10))
+    for key in res.keys():
+        print(key + ': ' + str(res[key]) + ' seasons')
 
 
-class CurrencyHandler(xml.sax.ContentHandler):
-    def __init__(self):
-        self.CurrentData = ''
-        self.name = ''
-        self.current = ''
-
-    def startElement(self, tag, attributes):
-        self.CurrentData = tag
-
-    def endElement(self, tag):
-        if self.CurrentData == 'Name':
-            print(self.name)
-        if self.CurrentData == 'Value':
-            print(self.current)
-        self.CurrentData = ""
-
-    def characters(self, content):
-        if self.CurrentData == 'Name':
-            self.name = content
-        if self.CurrentData == 'Value':
-            self.current = str(content)
+# Случайные 3 британских фильма с рейтингом PG
+def get_random_pg(df):
+    df_movies = df[(df['type'] == 'Movie') & (df['country'].str.contains("United Kingdom"))
+                   & (df['rating'].str.contains('PG'))]
+    print(df_movies.sample(3))
 
 
-def parse_xml():
-    with open('daily_utf8.xml', encoding='utf-8') as xml_file:
-        parser = xml.sax.make_parser()
-        parser.setFeature(xml.sax.handler.feature_namespaces, 0)
-        Handler = CurrencyHandler()
-        parser.setContentHandler(Handler)
-        parser.parse(xml_file)
+# 10 самых длинных фильмов
+def get_longest_movies(df):
+    df_movies = df[(df['type'] == 'Movie')]
+    df_movies['duration'] = df_movies['duration'].str.split(' ', expand=True)
+    df_movies['duration'] = pd.to_numeric(df_movies['duration'])
+    df_movies = df_movies.sort_values(by='duration', ascending=False)
+    res = pd.Series(df_movies.duration.values, index=df_movies.title).to_dict()
+    res = dict(islice(res.items(), 10))
+    for key in res.keys():
+        print(key + ': ' + str(res[key]) + ' minutes')
 
 
-def parse_csv():
-    with open('ABBREV.csv', mode='r', encoding='utf-8') as csv_file:
-        print('Калорийность пищевых продуктов и кол - во белков, жиров и углеводов на 100 г.')
-        data = []
-        csv_reader = csv.DictReader(csv_file, delimiter=';')
-        for row in csv_reader:
-            print(f"{row['Shrt_Desc']}: {row['Energ_Kcal']} ккал, {row['Protein_(g)']} белка, "
-                  f"{row['Carbohydrt_(g)']} углеводов, {row['Lipid_Tot_(g)']} жира")
-        print('Стоит учесть, что при значениях <0.5 грамма на 100 грамм продукта производят округление к 0 граммов')
+# 10 случайных фильмов
+def get_ten_random_movies(df):
+    df_movies = df[(df['type'] == 'Movie')]
+    res = df_movies.sample(10)[['title', 'description']]
+    res = pd.Series(res.description.values, index=res.title).to_dict()
+    for key in res.keys():
+        print(f'Title: {key}\n'
+              f'Description: {res[key]}\n'
+              f'-----------------------------------------------------------------------------\n')
 
-# Расскоментируйте функции для теста их работы
-#parse_csv()
-#parse_xml()
-#parse_json()
+# Расскомментируйте вызовы функций для их теста
+#get_ten_random_movies(df)
+#get_random_pg(df)
+#get_longest_running_shows(df)
+#get_longest_movies(df)
